@@ -72,14 +72,6 @@ df = load_data()
 
 # Streamlit App Title
 st.title('Career Earnings and Work-Life Analysis')
-st.write('Explore income, work hours, and hourly efficiency for young professionals (18-35 years old) earning between $75,000 and $200,000, working 26-59 hours a week.')
-
-# Display overall statistics (keeping this as general context, not a graph)
-st.header('Overall Statistics')
-st.write(f"Total individuals analyzed: {len(df)}")
-st.write(f"Average Annual Income: ${df['INCWAGE'].mean():,.2f}")
-st.write(f"Average Hours Worked Per Week: {df['UHRSWORKT'].mean():.2f}")
-st.write(f"Average Hourly Efficiency: ${df['HourlyEfficiency'].mean():,.2f}")
 
 # Section: Income Distribution - Boxplot
 st.header('Income Distribution - Boxplot')
@@ -103,3 +95,12 @@ fig_avg_income_occ = px.bar(
     height=600 # Adjust height for better readability of many bars
 )
 st.plotly_chart(fig_avg_income_occ)
+
+st.write('Explore income, work hours, and hourly efficiency for young professionals (18-35 years old) earning between $75,000 and $200,000, working 26-59 hours a week.')
+
+# Display overall statistics (keeping this as general context, not a graph)
+st.header('Overall Statistics')
+st.write(f"Total individuals analyzed: {len(df)}")
+st.write(f"Average Annual Income: ${df['INCWAGE'].mean():,.2f}")
+st.write(f"Average Hours Worked Per Week: {df['UHRSWORKT'].mean():.2f}")
+st.write(f"Average Hourly Efficiency: ${df['HourlyEfficiency'].mean():,.2f}")
