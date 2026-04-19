@@ -7,139 +7,137 @@ Original file is located at
     https://colab.research.google.com/drive/1kvPd0wo6MmsN9ENdNkdc07ffT3pRwKBd
 """
 
-# Commented out IPython magic to ensure Python compatibility.
-# %%writefile app.py
-# import pandas as pd
-# import numpy as np
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-# import streamlit as st
-# import plotly.express as px
-# import sqlite3
-# 
-# # Function to load and preprocess data
-# @st.cache_data
-# def load_data():
-#     # Load IPMUS data
-#     IPMUS_df = pd.read_csv('/content/IPUMS.csv')
-# 
-#     # Handle missing values for TELWRKPAY
-#     IPMUS_df['TELWRKPAY'] = IPMUS_df['TELWRKPAY'].fillna(0)
-# 
-#     # Load occupation codes
-#     occupation_codes_df = pd.read_csv('/content/Occupation_Codes.csv')
-#     occupation_codes_df['OCC Code'] = occupation_codes_df['OCC Code'].replace('000N', '0')
-#     occupation_codes_df['OCC Code'] = occupation_codes_df['OCC Code'].astype(int)
-# 
-#     # Create a temporary SQLite database to merge dataframes
-#     conn = sqlite3.connect(':memory:')
-#     IPMUS_df.to_sql('IPMUS_df', conn, if_exists='replace', index=False)
-#     occupation_codes_df.to_sql('occupation_codes_df', conn, if_exists='replace', index=False)
-# 
-#     merged_df = pd.read_sql_query(
-#         """
-#         SELECT
-#             ip.*,
-#             oc."Occupation Title",
-#             oc."Major Category"
-#         FROM
-#             IPMUS_df ip
-#         LEFT JOIN
-#             occupation_codes_df oc ON ip.OCC = oc."OCC Code"
-#         """,
-#         conn
-#     )
-#     conn.close()
-# 
-#     # Filter data
-#     filtered_df = merged_df[
-#         (merged_df['AGE'] >= 18) & (merged_df['AGE'] <= 35) &
-#         (merged_df['UHRSWORKT'] < 60) & (merged_df['UHRSWORKT'] > 25) &
-#         (merged_df['INCWAGE'] < 200000) & (merged_df['INCWAGE'] > 75000) &
-#         (merged_df['OCC'] != 0)
-#     ].copy()
-# 
-#     # Create new variables
-#     filtered_df['HighEarner'] = (filtered_df['INCWAGE'] > filtered_df['INCWAGE'].median()).astype(int)
-#     filtered_df['HourlyEfficiency'] = filtered_df['INCWAGE'] / (filtered_df['WKSWORK1'] * filtered_df['UHRSWORKT'])
-#     filtered_df['EdWorkIntensity'] = filtered_df['EDUC'] * filtered_df['UHRSWORKT']
-# 
-#     # Drop 'STATEFIP' as it was identified as a noise variable
-#     filtered_df = filtered_df.drop(columns=['STATEFIP'], errors='ignore')
-# 
-#     return filtered_df
-# 
-# # Load data
-# df = load_data()
-# 
-# # Streamlit App Title
-# st.title('Career Earnings and Work-Life Analysis')
-# st.write('Explore income, work hours, and hourly efficiency for young professionals (18-35 years old) earning between $75,000 and $200,000, working 26-59 hours a week.')
-# 
-# # Display overall statistics
-# st.header('Overall Statistics')
-# st.write(f"Total individuals analyzed: {len(df)}")
-# st.write(f"Average Annual Income: ${df['INCWAGE'].mean():,.2f}")
-# st.write(f"Average Hours Worked Per Week: {df['UHRSWORKT'].mean():.2f}")
-# st.write(f"Average Hourly Efficiency: ${df['HourlyEfficiency'].mean():,.2f}")
-# 
-# # Section: Income by Occupation Category
-# st.header('Income by Occupation Category')
-# major_category_income = df.groupby('Major Category')['INCWAGE'].mean().sort_values(ascending=False).reset_index()
-# fig_major_cat_income = px.bar(
-#     major_category_income,
-#     x='Major Category',
-#     y='INCWAGE',
-#     title='Average Annual Income by Major Occupation Category',
-#     labels={'INCWAGE': 'Average Annual Income ($)', 'Major Category': 'Major Occupation Category'}
-# )
-# st.plotly_chart(fig_major_cat_income)
-# 
-# # Section: Hourly Efficiency by Education Level
-# st.header('Hourly Efficiency by Education Level')
-# avg_hourly_educ = df.groupby('EDUC')['HourlyEfficiency'].mean().sort_values(ascending=False).reset_index()
-# # Education code mapping (assuming some common codes based on IPUMS documentation or inferred from context)
-# education_map = {
-#     2: 'No schooling completed',
-#     10: 'Nursery school to 4th grade',
-#     20: '5th or 6th grade',
-#     30: '7th or 8th grade',
-#     40: '9th grade',
-#     50: '10th grade',
-#     60: '11th grade',
-#     71: '12th grade, no diploma',
-#     73: 'High school graduate or equivalent',
-#     81: 'Some college, no degree',
-#     91: 'Associate\'s degree',
-#     92: 'Bachelor\'s degree (inferred - often near 91)',
-#     111: 'Bachelor\'s degree',
-#     123: 'Master\'s degree',
-#     124: 'Professional degree',
-#     125: 'Doctorate degree'
-# }
-# avg_hourly_educ['Education Level'] = avg_hourly_educ['EDUC'].map(education_map).fillna(avg_hourly_educ['EDUC'].astype(str))
-# 
-# fig_hourly_educ = px.bar(
-#     avg_hourly_educ,
-#     x='Education Level',
-#     y='HourlyEfficiency',
-#     title='Average Hourly Efficiency by Education Level',
-#     labels={'HourlyEfficiency': 'Average Hourly Efficiency ($/hour)', 'Education Level': 'Education Level'}
-# )
-# st.plotly_chart(fig_hourly_educ)
-# 
-# # Section: Hours Worked by Major Occupation Category
-# st.header('Hours Worked by Major Occupation Category')
-# major_category_hours = df.groupby('Major Category')['UHRSWORKT'].mean().sort_values(ascending=False).reset_index()
-# fig_major_cat_hours = px.bar(
-#     major_category_hours,
-#     x='Major Category',
-#     y='UHRSWORKT',
-#     title='Average Weekly Hours Worked by Major Occupation Category',
-#     labels={'UHRSWORKT': 'Average Weekly Hours Worked', 'Major Category': 'Major Occupation Category'}
-# )
-# st.plotly_chart(fig_major_cat_hours)
-# 
-# # Raw Data Display
-# st.header('Raw Filtered Data Sample')
-# st.dataframe(df.head())
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import streamlit as st
+import plotly.express as px
+import sqlite3
+
+# Function to load and preprocess data
+@st.cache_data
+def load_data():
+    # Load IPMUS data
+    IPMUS_df = pd.read_csv('/content/IPUMS.csv')
+
+    # Handle missing values for TELWRKPAY
+    IPMUS_df['TELWRKPAY'] = IPMUS_df['TELWRKPAY'].fillna(0)
+
+    # Load occupation codes
+    occupation_codes_df = pd.read_csv('/content/Occupation_Codes.csv')
+    occupation_codes_df['OCC Code'] = occupation_codes_df['OCC Code'].replace('000N', '0')
+    occupation_codes_df['OCC Code'] = occupation_codes_df['OCC Code'].astype(int)
+
+    # Create a temporary SQLite database to merge dataframes
+    conn = sqlite3.connect(':memory:')
+    IPMUS_df.to_sql('IPMUS_df', conn, if_exists='replace', index=False)
+    occupation_codes_df.to_sql('occupation_codes_df', conn, if_exists='replace', index=False)
+
+    merged_df = pd.read_sql_query(
+        """
+        SELECT
+            ip.*,
+            oc."Occupation Title",
+            oc."Major Category"
+        FROM
+            IPMUS_df ip
+        LEFT JOIN
+            occupation_codes_df oc ON ip.OCC = oc."OCC Code"
+        """,
+        conn
+    )
+    conn.close()
+
+    # Filter data
+    filtered_df = merged_df[
+        (merged_df['AGE'] >= 18) & (merged_df['AGE'] <= 35) &
+        (merged_df['UHRSWORKT'] < 60) & (merged_df['UHRSWORKT'] > 25) &
+        (merged_df['INCWAGE'] < 200000) & (merged_df['INCWAGE'] > 75000) &
+        (merged_df['OCC'] != 0)
+    ].copy()
+
+    # Create new variables
+    filtered_df['HighEarner'] = (filtered_df['INCWAGE'] > filtered_df['INCWAGE'].median()).astype(int)
+    filtered_df['HourlyEfficiency'] = filtered_df['INCWAGE'] / (filtered_df['WKSWORK1'] * filtered_df['UHRSWORKT'])
+    filtered_df['EdWorkIntensity'] = filtered_df['EDUC'] * filtered_df['UHRSWORKT']
+
+    # Drop 'STATEFIP' as it was identified as a noise variable
+    filtered_df = filtered_df.drop(columns=['STATEFIP'], errors='ignore')
+
+    return filtered_df
+
+# Load data
+df = load_data()
+
+# Streamlit App Title
+st.title('Career Earnings and Work-Life Analysis')
+st.write('Explore income, work hours, and hourly efficiency for young professionals (18-35 years old) earning between $75,000 and $200,000, working 26-59 hours a week.')
+
+# Display overall statistics
+st.header('Overall Statistics')
+st.write(f"Total individuals analyzed: {len(df)}")
+st.write(f"Average Annual Income: ${df['INCWAGE'].mean():,.2f}")
+st.write(f"Average Hours Worked Per Week: {df['UHRSWORKT'].mean():.2f}")
+st.write(f"Average Hourly Efficiency: ${df['HourlyEfficiency'].mean():,.2f}")
+
+# Section: Income by Occupation Category
+st.header('Income by Occupation Category')
+major_category_income = df.groupby('Major Category')['INCWAGE'].mean().sort_values(ascending=False).reset_index()
+fig_major_cat_income = px.bar(
+    major_category_income,
+    x='Major Category',
+    y='INCWAGE',
+    title='Average Annual Income by Major Occupation Category',
+    labels={'INCWAGE': 'Average Annual Income ($)', 'Major Category': 'Major Occupation Category'}
+)
+st.plotly_chart(fig_major_cat_income)
+
+# Section: Hourly Efficiency by Education Level
+st.header('Hourly Efficiency by Education Level')
+avg_hourly_educ = df.groupby('EDUC')['HourlyEfficiency'].mean().sort_values(ascending=False).reset_index()
+# Education code mapping (assuming some common codes based on IPUMS documentation or inferred from context)
+education_map = {
+    2: 'No schooling completed',
+    10: 'Nursery school to 4th grade',
+    20: '5th or 6th grade',
+    30: '7th or 8th grade',
+    40: '9th grade',
+    50: '10th grade',
+    60: '11th grade',
+    71: '12th grade, no diploma',
+    73: 'High school graduate or equivalent',
+    81: 'Some college, no degree',
+    91: 'Associate\'s degree',
+    92: 'Bachelor\'s degree (inferred - often near 91)',
+    111: 'Bachelor\'s degree',
+    123: 'Master\'s degree',
+    124: 'Professional degree',
+    125: 'Doctorate degree'
+}
+avg_hourly_educ['Education Level'] = avg_hourly_educ['EDUC'].map(education_map).fillna(avg_hourly_educ['EDUC'].astype(str))
+
+fig_hourly_educ = px.bar(
+    avg_hourly_educ,
+    x='Education Level',
+    y='HourlyEfficiency',
+    title='Average Hourly Efficiency by Education Level',
+    labels={'HourlyEfficiency': 'Average Hourly Efficiency ($/hour)', 'Education Level': 'Education Level'}
+)
+st.plotly_chart(fig_hourly_educ)
+
+# Section: Hours Worked by Major Occupation Category
+st.header('Hours Worked by Major Occupation Category')
+major_category_hours = df.groupby('Major Category')['UHRSWORKT'].mean().sort_values(ascending=False).reset_index()
+fig_major_cat_hours = px.bar(
+    major_category_hours,
+    x='Major Category',
+    y='UHRSWORKT',
+    title='Average Weekly Hours Worked by Major Occupation Category',
+    labels={'UHRSWORKT': 'Average Weekly Hours Worked', 'Major Category': 'Major Occupation Category'}
+)
+st.plotly_chart(fig_major_cat_hours)
+
+# Raw Data Display
+st.header('Raw Filtered Data Sample')
+st.dataframe(df.head())
