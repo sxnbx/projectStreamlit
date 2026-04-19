@@ -19,13 +19,13 @@ import sqlite3
 @st.cache_data
 def load_data():
     # Load IPMUS data
-    IPMUS_df = pd.read_csv('/content/IPUMS.csv')
+    IPMUS_df = pd.read_csv('/IPUMS.csv')
 
     # Handle missing values for TELWRKPAY
     IPMUS_df['TELWRKPAY'] = IPMUS_df['TELWRKPAY'].fillna(0)
 
     # Load occupation codes
-    occupation_codes_df = pd.read_csv('/content/Occupation_Codes.csv')
+    occupation_codes_df = pd.read_csv('Occupation_Codes.csv')
     occupation_codes_df['OCC Code'] = occupation_codes_df['OCC Code'].replace('000N', '0')
     occupation_codes_df['OCC Code'] = occupation_codes_df['OCC Code'].astype(int)
 
