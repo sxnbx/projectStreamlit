@@ -19,7 +19,7 @@ import sqlite3
 @st.cache_data
 def load_data():
     # Load IPMUS data
-    IPMUS_df = pd.read_csv('/IPUMS.csv')
+    IPMUS_df = pd.read_csv('IPUMS.csv')
 
     # Handle missing values for TELWRKPAY
     IPMUS_df['TELWRKPAY'] = IPMUS_df['TELWRKPAY'].fillna(0)
