@@ -19,13 +19,13 @@ import sqlite3
 @st.cache_data
 def load_data():
     # Load IPMUS data
-    IPMUS_df = pd.read_csv('IPUMS.csv')
+    IPMUS_df = pd.read_csv('/content/IPUMS.csv')
 
     # Handle missing values for TELWRKPAY
     IPMUS_df['TELWRKPAY'] = IPMUS_df['TELWRKPAY'].fillna(0)
 
     # Load occupation codes
-    occupation_codes_df = pd.read_csv('Occupation_Codes.csv')
+    occupation_codes_df = pd.read_csv('/content/Occupation_Codes.csv')
     occupation_codes_df['OCC Code'] = occupation_codes_df['OCC Code'].replace('000N', '0')
     occupation_codes_df['OCC Code'] = occupation_codes_df['OCC Code'].astype(int)
 
@@ -74,70 +74,32 @@ df = load_data()
 st.title('Career Earnings and Work-Life Analysis')
 st.write('Explore income, work hours, and hourly efficiency for young professionals (18-35 years old) earning between $75,000 and $200,000, working 26-59 hours a week.')
 
-# Display overall statistics
+# Display overall statistics (keeping this as general context, not a graph)
 st.header('Overall Statistics')
 st.write(f"Total individuals analyzed: {len(df)}")
 st.write(f"Average Annual Income: ${df['INCWAGE'].mean():,.2f}")
 st.write(f"Average Hours Worked Per Week: {df['UHRSWORKT'].mean():.2f}")
 st.write(f"Average Hourly Efficiency: ${df['HourlyEfficiency'].mean():,.2f}")
 
-# Section: Income by Occupation Category
-st.header('Income by Occupation Category')
-major_category_income = df.groupby('Major Category')['INCWAGE'].mean().sort_values(ascending=False).reset_index()
-fig_major_cat_income = px.bar(
-    major_category_income,
-    x='Major Category',
+# Section: Income Distribution - Boxplot
+st.header('Income Distribution - Boxplot')
+fig_boxplot = px.box(df, y="INCWAGE", title="Income Boxplot")
+st.plotly_chart(fig_boxplot)
+
+# Section: Income Distribution - Histogram
+st.header('Income Distribution - Histogram')
+fig_hist = px.histogram(df, x="INCWAGE", nbins=50, title="Income Histogram")
+st.plotly_chart(fig_hist)
+
+# Section: Average Income by Occupation
+st.header('Average Income by Occupation')
+avg_income_by_occ = df.groupby('Occupation Title')['INCWAGE'].mean().sort_values(ascending=False).reset_index()
+fig_avg_income_occ = px.bar(
+    avg_income_by_occ,
+    x='Occupation Title',
     y='INCWAGE',
-    title='Average Annual Income by Major Occupation Category',
-    labels={'INCWAGE': 'Average Annual Income ($)', 'Major Category': 'Major Occupation Category'}
+    title='Average Annual Income by Occupation',
+    labels={'INCWAGE': 'Average Annual Income ($)', 'Occupation Title': 'Occupation'},
+    height=600 # Adjust height for better readability of many bars
 )
-st.plotly_chart(fig_major_cat_income)
-
-# Section: Hourly Efficiency by Education Level
-st.header('Hourly Efficiency by Education Level')
-avg_hourly_educ = df.groupby('EDUC')['HourlyEfficiency'].mean().sort_values(ascending=False).reset_index()
-# Education code mapping (assuming some common codes based on IPUMS documentation or inferred from context)
-education_map = {
-    2: 'No schooling completed',
-    10: 'Nursery school to 4th grade',
-    20: '5th or 6th grade',
-    30: '7th or 8th grade',
-    40: '9th grade',
-    50: '10th grade',
-    60: '11th grade',
-    71: '12th grade, no diploma',
-    73: 'High school graduate or equivalent',
-    81: 'Some college, no degree',
-    91: 'Associate\'s degree',
-    92: 'Bachelor\'s degree (inferred - often near 91)',
-    111: 'Bachelor\'s degree',
-    123: 'Master\'s degree',
-    124: 'Professional degree',
-    125: 'Doctorate degree'
-}
-avg_hourly_educ['Education Level'] = avg_hourly_educ['EDUC'].map(education_map).fillna(avg_hourly_educ['EDUC'].astype(str))
-
-fig_hourly_educ = px.bar(
-    avg_hourly_educ,
-    x='Education Level',
-    y='HourlyEfficiency',
-    title='Average Hourly Efficiency by Education Level',
-    labels={'HourlyEfficiency': 'Average Hourly Efficiency ($/hour)', 'Education Level': 'Education Level'}
-)
-st.plotly_chart(fig_hourly_educ)
-
-# Section: Hours Worked by Major Occupation Category
-st.header('Hours Worked by Major Occupation Category')
-major_category_hours = df.groupby('Major Category')['UHRSWORKT'].mean().sort_values(ascending=False).reset_index()
-fig_major_cat_hours = px.bar(
-    major_category_hours,
-    x='Major Category',
-    y='UHRSWORKT',
-    title='Average Weekly Hours Worked by Major Occupation Category',
-    labels={'UHRSWORKT': 'Average Weekly Hours Worked', 'Major Category': 'Major Occupation Category'}
-)
-st.plotly_chart(fig_major_cat_hours)
-
-# Raw Data Display
-st.header('Raw Filtered Data Sample')
-st.dataframe(df.head())
+st.plotly_chart(fig_avg_income_occ)
