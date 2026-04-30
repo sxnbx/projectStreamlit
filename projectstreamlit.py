@@ -49,7 +49,7 @@ def load_data():
 df = load_data()
 
 # TITLE
-st.title("💼 High-Income Entry Careers: Pay vs Time Commitment")
+st.title("High-Income Entry Careers: Pay vs Time Commitment")
 
 st.markdown("""
 This app explores **which careers pay well early in life** and  
@@ -94,7 +94,7 @@ fig1.update_layout(xaxis_title="Career Category", yaxis_title="Average Income ($
 st.plotly_chart(fig1, use_container_width=True)
 
 # PLOT 2: Hours required
-st.subheader("⏱️ How Many Hours Do These Careers Require?")
+st.subheader("How Many Hours Do These Careers Require?")
 
 hours_by_career = (
     high_df.groupby('Major Category')['UHRSWORKT']
