@@ -18,20 +18,20 @@ import sqlite3
 # Function to load and preprocess data
 @st.cache_data
 def load_data():
-    # Load IPMUS data
-    IPMUS_df = pd.read_csv('IPUMS.csv')
+    # Load IPUMS data
+    IPUMS_df = pd.read_csv('IPUMS.csv')
 
     # Handle missing values for TELWRKPAY
-    IPMUS_df['TELWRKPAY'] = IPMUS_df['TELWRKPAY'].fillna(0)
+    IPUMS_df['TELWRKPAY'] = IPUMS_df['TELWRKPAY'].fillna(0)
 
     # Load occupation codes
     occupation_codes_df = pd.read_csv('Occupation_Codes.csv')
     occupation_codes_df['OCC Code'] = occupation_codes_df['OCC Code'].replace('000N', '0')
     occupation_codes_df['OCC Code'] = occupation_codes_df['OCC Code'].astype(int)
 
-    # Create a temporary SQLite database to merge dataframes
+   # Create a temporary SQLite database to merge dataframes
     conn = sqlite3.connect(':memory:')
-    IPMUS_df.to_sql('IPMUS_df', conn, if_exists='replace', index=False)
+    IPUMS_df.to_sql('IPUMS_df', conn, if_exists='replace', index=False)
     occupation_codes_df.to_sql('occupation_codes_df', conn, if_exists='replace', index=False)
 
     merged_df = pd.read_sql_query(
@@ -41,7 +41,7 @@ def load_data():
             oc."Occupation Title",
             oc."Major Category"
         FROM
-            IPMUS_df ip
+            IPUMS_df ip
         LEFT JOIN
             occupation_codes_df oc ON ip.OCC = oc."OCC Code"
         """,
@@ -72,35 +72,74 @@ df = load_data()
 
 # Streamlit App Title
 st.title('Career Earnings and Work-Life Analysis')
-
-# Section: Income Distribution - Boxplot
-st.header('Income Distribution - Boxplot')
-fig_boxplot = px.box(df, y="INCWAGE", title="Income Boxplot")
-st.plotly_chart(fig_boxplot)
-
-# Section: Income Distribution - Histogram
-st.header('Income Distribution - Histogram')
-fig_hist = px.histogram(df, x="INCWAGE", nbins=50, title="Income Histogram")
-st.plotly_chart(fig_hist)
-
-# Section: Average Income by Occupation
-st.header('Average Income by Occupation')
-avg_income_by_occ = df.groupby('Occupation Title')['INCWAGE'].mean().sort_values(ascending=False).reset_index()
-fig_avg_income_occ = px.bar(
-    avg_income_by_occ,
-    x='Occupation Title',
-    y='INCWAGE',
-    title='Average Annual Income by Occupation',
-    labels={'INCWAGE': 'Average Annual Income ($)', 'Occupation Title': 'Occupation'},
-    height=600 # Adjust height for better readability of many bars
-)
-st.plotly_chart(fig_avg_income_occ)
-
 st.write('Explore income, work hours, and hourly efficiency for young professionals (18-35 years old) earning between $75,000 and $200,000, working 26-59 hours a week.')
 
-# Display overall statistics (keeping this as general context, not a graph)
-st.header('Overall Statistics')
-st.write(f"Total individuals analyzed: {len(df)}")
-st.write(f"Average Annual Income: ${df['INCWAGE'].mean():,.2f}")
-st.write(f"Average Hours Worked Per Week: {df['UHRSWORKT'].mean():.2f}")
-st.write(f"Average Hourly Efficiency: ${df['HourlyEfficiency'].mean():,.2f}")
+# WIDGET
+threshold = st.slider(
+    "Select income threshold to define High Earners:",
+    min_value=75000,
+    max_value=200000,
+    value=120000,
+    step=5000
+)
+
+# Create high/low earners dynamically
+df['EarnerType'] = np.where(df['INCWAGE'] >= threshold, "High Earners", "Low Earners")
+
+# Plot 1: Hours vs Income (Binned)
+bins = list(range(25, int(df['UHRSWORKT'].max()) + 6, 5))
+labels = [f"{i}-{i+4}" for i in bins[:-1]]
+
+df['HoursBin'] = pd.cut(df['UHRSWORKT'], bins=bins, labels=labels)
+
+hours_income = df.groupby('HoursBin')['INCWAGE'].mean().reset_index()
+
+fig1 = px.bar(
+    hours_income,
+    x='HoursBin',
+    y='INCWAGE',
+    title='Average Income by Hours Worked',
+    labels={'INCWAGE': 'Avg Income ($)', 'HoursBin': 'Hours per Week'}
+)
+
+st.plotly_chart(fig1, use_container_width=True)
+
+
+# Plot 2: High vs Low Earners Comparison
+earnertype_stats = df.groupby('EarnerType')[['INCWAGE','UHRSWORKT','HourlyEfficiency']].mean().reset_index()
+
+fig2 = px.bar(
+    earnertype_stats,
+    x='EarnerType',
+    y='INCWAGE',
+    color='EarnerType',
+    title='High vs Low Earners (Average Income)',
+)
+
+st.plotly_chart(fig2, use_container_width=True)
+
+# Plot 3: Income by Occupation Category
+st.header('Income by Occupation Category')
+major_category_income = df.groupby('Major Category')['INCWAGE'].mean().sort_values(ascending=False).reset_index()
+fig_major_cat_income = px.bar(
+    major_category_income,
+    x='Major Category',
+    y='INCWAGE',
+    title='Average Annual Income by Major Occupation Category',
+    labels={'INCWAGE': 'Average Annual Income ($)', 'Major Category': 'Major Occupation Category'}
+)
+st.plotly_chart(fig_major_cat_income)
+
+# CLEAN INSIGHT SECTION
+st.subheader("Key Insight")
+st.write(
+    "High earners tend to work slightly more hours, but their hourly efficiency is significantly higher. "
+    "This suggests that occupation and skill level—not just hours worked—drive higher income."
+)
+
+# -----------------------------
+# OPTIONAL DATA VIEW
+# -----------------------------
+with st.expander("View Sample Data"):
+    st.dataframe(df.head())
+
