@@ -9,137 +9,126 @@ Original file is located at
 
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 import streamlit as st
 import plotly.express as px
 import sqlite3
 
-# Function to load and preprocess data
+st.set_page_config(page_title="High-Income Careers Analysis", layout="wide")
+
+# -----------------------------
+# LOAD DATA
+# -----------------------------
 @st.cache_data
 def load_data():
-    # Load IPUMS data
-    IPUMS_df = pd.read_csv('IPUMS.csv')
+    ipums = pd.read_csv('IPUMS.csv')
+    ipums['TELWRKPAY'] = ipums['TELWRKPAY'].fillna(0)
 
-    # Handle missing values for TELWRKPAY
-    IPUMS_df['TELWRKPAY'] = IPUMS_df['TELWRKPAY'].fillna(0)
+    occ = pd.read_csv('Occupation_Codes.csv')
+    occ['OCC Code'] = occ['OCC Code'].replace('000N', '0').astype(int)
 
-    # Load occupation codes
-    occupation_codes_df = pd.read_csv('Occupation_Codes.csv')
-    occupation_codes_df['OCC Code'] = occupation_codes_df['OCC Code'].replace('000N', '0')
-    occupation_codes_df['OCC Code'] = occupation_codes_df['OCC Code'].astype(int)
-
-   # Create a temporary SQLite database to merge dataframes
     conn = sqlite3.connect(':memory:')
-    IPUMS_df.to_sql('IPUMS_df', conn, if_exists='replace', index=False)
-    occupation_codes_df.to_sql('occupation_codes_df', conn, if_exists='replace', index=False)
+    ipums.to_sql('ip', conn, index=False, if_exists='replace')
+    occ.to_sql('oc', conn, index=False, if_exists='replace')
 
-    merged_df = pd.read_sql_query(
-        """
-        SELECT
-            ip.*,
-            oc."Occupation Title",
-            oc."Major Category"
-        FROM
-            IPUMS_df ip
-        LEFT JOIN
-            occupation_codes_df oc ON ip.OCC = oc."OCC Code"
-        """,
-        conn
-    )
+    df = pd.read_sql("""
+        SELECT ip.*, oc."Occupation Title", oc."Major Category"
+        FROM ip
+        LEFT JOIN oc ON ip.OCC = oc."OCC Code"
+    """, conn)
     conn.close()
 
-    # Filter data
-    filtered_df = merged_df[
-        (merged_df['AGE'] >= 18) & (merged_df['AGE'] <= 35) &
-        (merged_df['UHRSWORKT'] < 60) & (merged_df['UHRSWORKT'] > 25) &
-        (merged_df['INCWAGE'] < 200000) & (merged_df['INCWAGE'] > 75000) &
-        (merged_df['OCC'] != 0)
+    df = df[
+        (df['AGE'].between(18, 35)) &
+        (df['UHRSWORKT'].between(26, 59)) &
+        (df['INCWAGE'].between(75000, 200000)) &
+        (df['OCC'] != 0)
     ].copy()
 
-    # Create new variables
-    filtered_df['HighEarner'] = (filtered_df['INCWAGE'] > filtered_df['INCWAGE'].median()).astype(int)
-    filtered_df['HourlyEfficiency'] = filtered_df['INCWAGE'] / (filtered_df['WKSWORK1'] * filtered_df['UHRSWORKT'])
-    filtered_df['EdWorkIntensity'] = filtered_df['EDUC'] * filtered_df['UHRSWORKT']
+    return df
 
-    # Drop 'STATEFIP' as it was identified as a noise variable
-    filtered_df = filtered_df.drop(columns=['STATEFIP'], errors='ignore')
-
-    return filtered_df
-
-# Load data
 df = load_data()
 
-# Streamlit App Title
-st.title('Career Earnings and Work-Life Analysis')
-st.write('Explore income, work hours, and hourly efficiency for young professionals (18-35 years old) earning between $75,000 and $200,000, working 26-59 hours a week.')
+# TITLE
+st.title("💼 High-Income Entry Careers: Pay vs Time Commitment")
+
+st.markdown("""
+This app explores **which careers pay well early in life** and  
+**how many hours you must work to earn that income**.
+""")
+
 
 # WIDGET
 threshold = st.slider(
-    "Select income threshold to define High Earners:",
-    min_value=75000,
-    max_value=200000,
-    value=120000,
-    step=5000
+    "Define 'High Income'",
+    75000, 200000, 120000, step=5000
 )
 
-# Create high/low earners dynamically
-df['EarnerType'] = np.where(df['INCWAGE'] >= threshold, "High Earners", "Low Earners")
+df['HighIncome'] = df['INCWAGE'] >= threshold
 
-# Plot 1: Hours vs Income (Binned)
-bins = list(range(25, int(df['UHRSWORKT'].max()) + 6, 5))
-labels = [f"{i}-{i+4}" for i in bins[:-1]]
 
-df['HoursBin'] = pd.cut(df['UHRSWORKT'], bins=bins, labels=labels)
+# FILTER TO HIGH INCOME CAREERS
+high_df = df[df['HighIncome']]
 
-hours_income = df.groupby('HoursBin')['INCWAGE'].mean().reset_index()
+
+# PLOT 1: Top careers to pay
+st.subheader("Which Careers Pay the Most Early?")
+
+top_careers = (
+    high_df.groupby('Major Category')['INCWAGE']
+    .mean()
+    .sort_values(ascending=False)
+    .head(8)
+    .reset_index()
+)
 
 fig1 = px.bar(
-    hours_income,
-    x='HoursBin',
+    top_careers,
+    x='Major Category',
     y='INCWAGE',
-    title='Average Income by Hours Worked',
-    labels={'INCWAGE': 'Avg Income ($)', 'HoursBin': 'Hours per Week'}
+    text_auto=True,
+    title="Top Paying Career Categories (Ages 18–35)"
 )
+
+fig1.update_layout(xaxis_title="Career Category", yaxis_title="Average Income ($)")
 
 st.plotly_chart(fig1, use_container_width=True)
 
+# PLOT 2: Hours required
+st.subheader("⏱️ How Many Hours Do These Careers Require?")
 
-# Plot 2: High vs Low Earners Comparison
-earnertype_stats = df.groupby('EarnerType')[['INCWAGE','UHRSWORKT','HourlyEfficiency']].mean().reset_index()
+hours_by_career = (
+    high_df.groupby('Major Category')['UHRSWORKT']
+    .mean()
+    .sort_values(ascending=False)
+    .loc[top_careers['Major Category']]
+    .reset_index()
+)
 
 fig2 = px.bar(
-    earnertype_stats,
-    x='EarnerType',
-    y='INCWAGE',
-    color='EarnerType',
-    title='High vs Low Earners (Average Income)',
+    hours_by_career,
+    x='Major Category',
+    y='UHRSWORKT',
+    text_auto=True,
+    title="Average Weekly Hours for High-Income Careers"
 )
+
+fig2.update_layout(xaxis_title="Career Category", yaxis_title="Hours per Week")
 
 st.plotly_chart(fig2, use_container_width=True)
 
-# Plot 3: Income by Occupation Category
-st.header('Income by Occupation Category')
-major_category_income = df.groupby('Major Category')['INCWAGE'].mean().sort_values(ascending=False).reset_index()
-fig_major_cat_income = px.bar(
-    major_category_income,
-    x='Major Category',
-    y='INCWAGE',
-    title='Average Annual Income by Major Occupation Category',
-    labels={'INCWAGE': 'Average Annual Income ($)', 'Major Category': 'Major Occupation Category'}
-)
-st.plotly_chart(fig_major_cat_income)
+# Key Insight
+st.subheader(" Key Insight")
 
-# CLEAN INSIGHT SECTION
-st.subheader("Key Insight")
-st.write(
-    "High earners tend to work slightly more hours, but their hourly efficiency is significantly higher. "
-    "This suggests that occupation and skill level—not just hours worked—drive higher income."
-)
+st.write(f"""
+At a ${threshold:,}+ income level:
 
-# -----------------------------
-# OPTIONAL DATA VIEW
-# -----------------------------
-with st.expander("View Sample Data"):
+- Some careers achieve high pay **without extreme hours**
+- Others require **longer work weeks to reach similar income**
+
+ This shows that **career choice impacts both income AND lifestyle**,  
+not just how hard or long you work.
+""")
+
+# Optional Data View
+with st.expander("📄 View Data"):
     st.dataframe(df.head())
-
