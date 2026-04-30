@@ -52,8 +52,7 @@ df = load_data()
 st.title("High-Income Entry Careers: Pay vs Time Commitment")
 
 st.markdown("""
-This app explores **which careers pay well early in life** and  
-**how many hours you must work to earn that income**.
+This app explores **which careers pay well early in life** and  **how many hours you must work to earn that income**.
 """)
 
 
