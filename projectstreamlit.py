@@ -58,13 +58,21 @@ This app explores **which careers pay well early in life** and
 
 
 # WIDGET
+st.subheader("Explore Income Thresholds")
+st.write("Slide the slider to where you think the **median income** is for this group:")
+
+# The actual median income for the dataset (Ages 18-35)
+actual_median = int(df['INCWAGE'].median())
+
 threshold = st.slider(
-    "Define 'High Income'",
+    "Select an Income Level", 
     75000, 200000, 120000, step=5000
 )
 
-df['HighIncome'] = df['INCWAGE'] >= threshold
+st.write(f"The actual **median income** in this dataset is: **${actual_median:,}**")
 
+# Update the 'HighIncome' flag based on user selection
+df['HighIncome'] = df['INCWAGE'] >= threshold
 
 # FILTER TO HIGH INCOME CAREERS
 high_df = df[df['HighIncome']]
